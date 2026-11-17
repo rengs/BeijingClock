@@ -14,7 +14,7 @@ APP_BUILD="2"
 APP_EXECUTABLE="BeijingClock"
 APP_NAME="京时"
 
-# 固定到已经包含这份 zip 的提交。不是 main。main 合并前没有这份安装包。
+# 固定到已经包含这份 zip 的提交。main 合并后也有同一份文件，SHA256 仍是最终校验。
 DEFAULT_ZIP_URL="https://raw.githubusercontent.com/rengs/BeijingClock/0df21739a8b26aee90eb99387f6a26bc4a016557/downloads/BeijingClock-1.0.1-arm64.app.zip"
 
 TMP_ROOT=""
@@ -74,14 +74,6 @@ allowed_url() {
   esac
   case "$url" in
     *..*|*' '*|*$'\n'*|*'|'*)
-      return 1
-      ;;
-  esac
-  case "$url" in
-    https://raw.githubusercontent.com/rengs/BeijingClock/main/*|\
-    https://raw.githubusercontent.com/rengs/BeijingClock/refs/heads/main/*|\
-    https://github.com/rengs/BeijingClock/raw/main/*|\
-    https://github.com/rengs/BeijingClock/raw/refs/heads/main/*)
       return 1
       ;;
   esac
@@ -370,7 +362,7 @@ make_temp() {
 
 download_zip() {
   local url=$1 dest=$2
-  allowed_url "$url" || die "只接受 rengs/BeijingClock 仓库里这份 zip 的 https 地址。main 合并前不能使用 main 的地址。"
+  allowed_url "$url" || die "只接受 rengs/BeijingClock 仓库里这份 zip 的 https 地址。"
   /usr/bin/curl \
     --fail \
     --location \
