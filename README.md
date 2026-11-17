@@ -22,7 +22,15 @@
 - 签名：ad-hoc，未公证
 - 安装这个 zip 不需要 Xcode，也不需要 Homebrew
 
-在本分支合并进 `main` 之前，请使用本分支上的文件。当前分支上的原始地址：
+在本分支合并进 `main` 之前，请使用下面这个已经包含安装包的提交，或本分支上的同一文件。不要把地址里的提交号或分支名换成 `main`。
+
+固定提交 `0df21739a8b26aee90eb99387f6a26bc4a016557`：
+
+```text
+https://raw.githubusercontent.com/rengs/BeijingClock/0df21739a8b26aee90eb99387f6a26bc4a016557/downloads/BeijingClock-1.0.1-arm64.app.zip
+```
+
+同一文件的分支地址：
 
 ```text
 https://raw.githubusercontent.com/rengs/BeijingClock/cursor/sync-beijingclock-1.0.1-c298/downloads/BeijingClock-1.0.1-arm64.app.zip
@@ -31,7 +39,7 @@ https://raw.githubusercontent.com/rengs/BeijingClock/cursor/sync-beijingclock-1.
 页面：
 
 ```text
-https://github.com/rengs/BeijingClock/blob/cursor/sync-beijingclock-1.0.1-c298/downloads/BeijingClock-1.0.1-arm64.app.zip
+https://github.com/rengs/BeijingClock/blob/0df21739a8b26aee90eb99387f6a26bc4a016557/downloads/BeijingClock-1.0.1-arm64.app.zip
 ```
 
 仓库说明的分支页面：
@@ -111,7 +119,7 @@ mkdir -p "$HOME/src"
 cd "$HOME/src"
 
 curl -fL --proto '=https' --output BeijingClock-1.0.1-arm64.app.zip \
-  'https://raw.githubusercontent.com/rengs/BeijingClock/cursor/sync-beijingclock-1.0.1-c298/downloads/BeijingClock-1.0.1-arm64.app.zip'
+  'https://raw.githubusercontent.com/rengs/BeijingClock/0df21739a8b26aee90eb99387f6a26bc4a016557/downloads/BeijingClock-1.0.1-arm64.app.zip'
 
 curl -fL --proto '=https' --output install-macos.sh \
   'https://raw.githubusercontent.com/rengs/BeijingClock/cursor/sync-beijingclock-1.0.1-c298/scripts/install-macos.sh'
@@ -137,7 +145,7 @@ cd ..
 ./scripts/install-macos.sh --zip downloads/BeijingClock-1.0.1-arm64.app.zip
 ```
 
-只想让脚本自己下载仓库里的那一份时，在确认脚本内容之后执行 `./scripts/install-macos.sh`。它使用的地址就是上面的分支文件，不是 `main`。
+只想让脚本自己下载仓库里的那一份时，在确认脚本内容之后执行 `./scripts/install-macos.sh`。脚本里的地址是提交 `0df21739a8b26aee90eb99387f6a26bc4a016557` 上的 zip，不是 `main`。
 
 校验值已经一致时，也可以不用脚本，自己解开已知的这份 zip：
 

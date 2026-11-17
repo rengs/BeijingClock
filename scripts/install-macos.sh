@@ -14,8 +14,8 @@ APP_BUILD="2"
 APP_EXECUTABLE="BeijingClock"
 APP_NAME="京时"
 
-# 此地址指向已包含该 zip 的提交，不是 main。main 合并前没有这份安装包。
-DEFAULT_ZIP_URL="https://raw.githubusercontent.com/rengs/BeijingClock/cursor/sync-beijingclock-1.0.1-c298/downloads/BeijingClock-1.0.1-arm64.app.zip"
+# 固定到已经包含这份 zip 的提交。不是 main。main 合并前没有这份安装包。
+DEFAULT_ZIP_URL="https://raw.githubusercontent.com/rengs/BeijingClock/0df21739a8b26aee90eb99387f6a26bc4a016557/downloads/BeijingClock-1.0.1-arm64.app.zip"
 
 TMP_ROOT=""
 
