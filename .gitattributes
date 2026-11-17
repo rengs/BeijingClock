@@ -1,0 +1,5 @@
+downloads/*.zip binary
+*.sh text eol=lf
+*.swift text eol=lf
+*.plist text eol=lf
+*.md text eol=lf
