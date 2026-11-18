@@ -143,8 +143,17 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         policy.textColor = .secondaryLabelColor
         policy.font = NSFont.systemFont(ofSize: 12)
 
+        let widgetHeading = heading("桌面小组件")
+        let widgetNote = NSTextField(wrappingLabelWithString: widgetText())
+        widgetNote.preferredMaxLayoutWidth = 510
+        widgetNote.maximumNumberOfLines = 8
+        widgetNote.textColor = .secondaryLabelColor
+        widgetNote.font = NSFont.systemFont(ofSize: 12)
+
         let stack = NSStackView(views: [
             limit,
+            widgetHeading,
+            widgetNote,
             clockHeading,
             previewLabel,
             dateCheck,
@@ -176,7 +185,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         settingsScroll.drawsBackground = false
         settingsScroll.documentView = stack
         content.addSubview(settingsScroll)
-        let height = stack.heightAnchor.constraint(equalToConstant: 1280)
+        let height = stack.heightAnchor.constraint(equalToConstant: 1560)
         documentHeight = height
         NSLayoutConstraint.activate([
             settingsScroll.topAnchor.constraint(equalTo: content.topAnchor),
@@ -210,6 +219,10 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     private func limitationText() -> String {
         "如果菜单栏里看不到「京时」，通常是 macOS 没有空位，或系统把这项藏起来了。这个窗口不依赖菜单栏：这里有北京时间和闹钟。在 Finder 里再次打开本应用，也会把窗口带到前面。普通菜单栏应用不能保证排在系统时间右边，也无法自动读取所有系统时钟显示偏好；下面的选项由你自己设置，位置以 macOS 允许为准。可按住 Command 拖动本项，但不保证能放到系统时钟右侧，也不保证与系统时钟像素完全一致。本应用必须保持运行，且 Mac 处于唤醒状态，才会刷新时间和响铃；不能保证从睡眠中唤醒电脑，也不会修改开机启动或睡眠设置。"
+    }
+
+    private func widgetText() -> String {
+        "macOS 14 及以上可以把「京时双环」放到桌面或通知中心。外圈是北京时间，00 在正上方、顺时针；内圈默认洛杉矶，同一角度是同一个时刻。北京早 8 点有方块刻度和「早8」。时区在系统的小组件编辑里选择，记在这个小组件上，不写入闹钟，也不改系统时区。刷新按系统预算，大约 15 分钟，不是每秒。现有 1.0.1 预编译 zip 不含小组件。图库是否列出，取决于系统是否接受扩展签名。"
     }
 
     private func policyText() -> String {
