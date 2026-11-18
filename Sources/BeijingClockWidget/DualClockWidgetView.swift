@@ -109,13 +109,14 @@ struct DualClockRing: View {
             let radius = side / 2
             let outerRing = radius * 0.74
             let innerRing = radius * 0.52
-            strokeCircle(center: center, radius: outerRing, in: &context, color: .secondary, width: 1)
-            strokeCircle(center: center, radius: innerRing, in: &context, color: .tertiary, width: 1)
+            let quietInk = Color.secondary.opacity(0.45)
+            strokeCircle(center: center, radius: outerRing, in: &context, color: Color.secondary, width: 1)
+            strokeCircle(center: center, radius: innerRing, in: &context, color: quietInk, width: 1)
 
             for spoke in day.spokes {
                 let emphasized = spoke.beijingHour == DualClockDial.emphasizedBeijingHour
                 let showLabel = emphasized || spoke.beijingHour.isMultiple(of: labelStride)
-                let tickColor: Color = emphasized ? .primary : .tertiary
+                let tickColor = emphasized ? Color.primary : quietInk
                 let tickWidth: CGFloat = emphasized ? 2.5 : 1
                 var ray = Path()
                 ray.move(to: point(center: center, radius: innerRing - 2, angle: spoke.angleDegrees))
@@ -124,7 +125,7 @@ struct DualClockRing: View {
                 if emphasized {
                     let end = point(center: center, radius: outerRing + 8, angle: spoke.angleDegrees)
                     let marker = CGRect(x: end.x - 3.5, y: end.y - 3.5, width: 7, height: 7)
-                    context.fill(Path(roundedRect: marker, cornerRadius: 1.5), with: .color(.primary))
+                    context.fill(Path(roundedRect: marker, cornerRadius: 1.5), with: .color(Color.primary))
                 }
                 if showLabel {
                     draw(
@@ -133,7 +134,7 @@ struct DualClockRing: View {
                         in: &context,
                         size: emphasized ? 12 : 10,
                         weight: emphasized ? .semibold : .regular,
-                        color: .primary
+                        color: Color.primary
                     )
                     let repeated = day.repeatedInnerClockHours.contains {
                         $0.year == spoke.inner.year && $0.month == spoke.inner.month
@@ -145,7 +146,7 @@ struct DualClockRing: View {
                         in: &context,
                         size: 9,
                         weight: .regular,
-                        color: .secondary
+                        color: Color.secondary
                     )
                 }
             }
@@ -159,14 +160,14 @@ struct DualClockRing: View {
             var hand = Path()
             hand.move(to: center)
             hand.addLine(to: now)
-            context.stroke(hand, with: .color(.primary), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+            context.stroke(hand, with: .color(Color.primary), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
             context.fill(
                 Path(ellipseIn: CGRect(x: center.x - 2, y: center.y - 2, width: 4, height: 4)),
-                with: .color(.primary)
+                with: .color(Color.primary)
             )
             context.fill(
                 Path(ellipseIn: CGRect(x: now.x - 3, y: now.y - 3, width: 6, height: 6)),
-                with: .color(.primary)
+                with: .color(Color.primary)
             )
         }
         .accessibilityLabel("一个圆盘上的内外同心环。正上方是北京零点，顺时针。北京早8点有方块刻度。")
