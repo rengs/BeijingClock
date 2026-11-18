@@ -32,7 +32,10 @@ final class DualClockDialTests: XCTestCase {
         XCTAssertEqual(winterPair.inner.offsetSeconds, -8 * 3600)
         XCTAssertFalse(winterPair.inner.isDaylightSavingTime)
         XCTAssertEqual(winterPair.dayRelation, .yesterday)
-        XCTAssertEqual(DualClockDial.angleDegrees(hour: 8, minute: 0), 120, accuracy: 0.001)
+        XCTAssertEqual(DualClockDial.twelveHour(winterPair.beijing).text, "上午 8:00")
+        XCTAssertEqual(DualClockDial.twelveHour(winterPair.inner).text, "下午 4:00")
+        XCTAssertEqual(DualClockDial.angleDegrees(hour: 8, minute: 0), 240, accuracy: 0.001)
+        XCTAssertEqual(DualClockDial.outerMark(beijingHour: 8), "早8")
 
         let summer = try require(BeijingTime.date(CivilDate(year: 2024, month: 7, day: 15), hour: 8, minute: 0))
         let summerPair = DualClockDial.pair(at: summer, innerZone: losAngeles)
@@ -41,6 +44,7 @@ final class DualClockDialTests: XCTestCase {
         XCTAssertEqual(summerPair.inner.offsetSeconds, -7 * 3600)
         XCTAssertTrue(summerPair.inner.isDaylightSavingTime)
         XCTAssertEqual(summerPair.dayRelation, .yesterday)
+        XCTAssertEqual(DualClockDial.twelveHour(summerPair.inner).text, "下午 5:00")
         XCTAssertNotEqual(winterPair.inner.offsetSeconds, summerPair.inner.offsetSeconds)
     }
 
@@ -51,7 +55,16 @@ final class DualClockDialTests: XCTestCase {
         XCTAssertEqual(winterPair.inner.day, 14)
         XCTAssertEqual(winterPair.inner.hour, 8)
         XCTAssertEqual(winterPair.dayRelation, .yesterday)
+        XCTAssertEqual(DualClockDial.twelveHour(winterPair.beijing).text, "上午 12:00")
         XCTAssertEqual(DualClockDial.angleDegrees(hour: 0, minute: 0), 0, accuracy: 0.001)
+        XCTAssertEqual(DualClockDial.angleDegrees(hour: 12, minute: 0), 0, accuracy: 0.001)
+        let noon = try require(BeijingTime.date(CivilDate(year: 2024, month: 1, day: 15), hour: 12, minute: 0))
+        let noonReading = DualClockDial.twelveHour(DualClockDial.pair(at: noon, innerZone: losAngeles).beijing)
+        XCTAssertEqual(noonReading.hourOnFace, 12)
+        XCTAssertEqual(noonReading.period, .afternoon)
+        XCTAssertEqual(noonReading.text, "下午 12:00")
+        XCTAssertEqual(DualClockDial.halfDay(ofHour: 0), .morning)
+        XCTAssertEqual(DualClockDial.halfDay(ofHour: 12), .afternoon)
 
         let summer = try require(BeijingTime.date(CivilDate(year: 2024, month: 7, day: 15), hour: 0, minute: 0))
         let summerPair = DualClockDial.pair(at: summer, innerZone: losAngeles)
@@ -65,10 +78,13 @@ final class DualClockDialTests: XCTestCase {
             containing: try require(BeijingTime.date(CivilDate(year: 2024, month: 1, day: 15), hour: 12, minute: 0)),
             innerZone: losAngeles
         )
-        XCTAssertEqual(day.spokes.count, 24)
-        XCTAssertEqual(day.spokes.map(\.angleDegrees), (0..<24).map { DualClockDial.angleDegrees(hour: $0, minute: 0) })
-        let eight = try requireSpoke(day, hour: 8)
-        XCTAssertEqual(eight.angleDegrees, 120, accuracy: 0.001)
+        let cycle = DualClockDial.cycle(containing: try require(BeijingTime.date(CivilDate(year: 2024, month: 1, day: 15), hour: 8, minute: 0)), innerZone: losAngeles)
+        XCTAssertEqual(cycle.half, .morning)
+        XCTAssertEqual(cycle.spokes.count, 12)
+        XCTAssertEqual(cycle.spokes.map(\.beijingHour), Array(0..<12))
+        XCTAssertEqual(cycle.spokes.map(\.angleDegrees), (0..<12).map { DualClockDial.angleDegrees(hour: $0, minute: 0) })
+        let eight = try XCTUnwrap(cycle.displayedDay.spoke(beijingHour: 8))
+        XCTAssertEqual(eight.angleDegrees, 240, accuracy: 0.001)
         XCTAssertEqual(eight.inner.hour, 16)
         XCTAssertEqual(eight.inner.day, 14)
         let pair = DualClockDial.pair(at: eight.instant, innerZone: losAngeles)
@@ -78,17 +94,27 @@ final class DualClockDialTests: XCTestCase {
         let midnight = try requireSpoke(day, hour: 0)
         XCTAssertNotEqual(midnight.inner.hour, 0)
         XCTAssertEqual(midnight.angleDegrees, 0, accuracy: 0.001)
-        XCTAssertEqual(try requireSpoke(day, hour: 6).angleDegrees, 90, accuracy: 0.001)
-        XCTAssertEqual(try requireSpoke(day, hour: 12).angleDegrees, 180, accuracy: 0.001)
-        XCTAssertEqual(try requireSpoke(day, hour: 18).angleDegrees, 270, accuracy: 0.001)
+        XCTAssertEqual(DualClockDial.angleDegrees(hour: 3, minute: 0), 90, accuracy: 0.001)
+        XCTAssertEqual(DualClockDial.angleDegrees(hour: 6, minute: 0), 180, accuracy: 0.001)
+        XCTAssertEqual(DualClockDial.angleDegrees(hour: 9, minute: 0), 270, accuracy: 0.001)
+        XCTAssertEqual(DualClockDial.angleDegrees(hour: 8, minute: 0), DualClockDial.angleDegrees(hour: 20, minute: 0), accuracy: 0.001)
+        XCTAssertEqual(DualClockDial.outerMark(beijingHour: 20), "晚8")
+        XCTAssertNotEqual(DualClockDial.outerMark(beijingHour: 8), DualClockDial.outerMark(beijingHour: 20))
+        let evening = DualClockDial.cycle(containing: try require(BeijingTime.date(CivilDate(year: 2024, month: 1, day: 15), hour: 20, minute: 0)), innerZone: losAngeles)
+        XCTAssertEqual(evening.half, .afternoon)
+        XCTAssertEqual(evening.displayedDay.spoke(beijingHour: 20)?.inner.hour, 4)
+        XCTAssertEqual(evening.displayedDay.spoke(beijingHour: 20)?.inner.day, 15)
+        XCTAssertEqual(DualClockDial.twelveHour(evening.displayedDay.spoke(beijingHour: 20)!.inner).text, "上午 4:00")
+        XCTAssertNil(evening.displayedDay.spoke(beijingHour: 8))
         XCTAssertEqual(day.distinctOffsets, [-8 * 3600])
     }
 
     func testSpringForwardSkipsAnHourAndDoesNotUseOneOffsetAllDay() throws {
-        let day = DualClockDial.beijingDay(
-            containing: try require(BeijingTime.date(CivilDate(year: 2024, month: 3, day: 10), hour: 12, minute: 0)),
+        let day = DualClockDial.cycle(
+            containing: try require(BeijingTime.date(CivilDate(year: 2024, month: 3, day: 10), hour: 18, minute: 0)),
             innerZone: losAngeles
-        )
+        ).displayedDay
+        XCTAssertEqual(DualClockDial.cycle(containing: try require(BeijingTime.date(CivilDate(year: 2024, month: 3, day: 10), hour: 18, minute: 0)), innerZone: losAngeles).half, .afternoon)
         XCTAssertEqual(day.distinctOffsets, [-8 * 3600, -7 * 3600])
         let before = try requireSpoke(day, hour: 17)
         let after = try requireSpoke(day, hour: 18)
@@ -105,10 +131,10 @@ final class DualClockDialTests: XCTestCase {
     }
 
     func testFallBackRepeatsAnHourWithTwoOffsets() throws {
-        let day = DualClockDial.beijingDay(
-            containing: try require(BeijingTime.date(CivilDate(year: 2024, month: 11, day: 3), hour: 12, minute: 0)),
+        let day = DualClockDial.cycle(
+            containing: try require(BeijingTime.date(CivilDate(year: 2024, month: 11, day: 3), hour: 16, minute: 0)),
             innerZone: losAngeles
-        )
+        ).displayedDay
         XCTAssertEqual(day.distinctOffsets, [-8 * 3600, -7 * 3600])
         let first = try requireSpoke(day, hour: 16)
         let second = try requireSpoke(day, hour: 17)
@@ -150,7 +176,7 @@ final class DualClockDialTests: XCTestCase {
         XCTAssertEqual(stJohnsPair.inner.minute, 30)
         XCTAssertEqual(stJohnsPair.inner.offsetSeconds % 3600, -1800)
 
-        let day = DualClockDial.beijingDay(containing: instant, innerZone: kolkata)
+        let day = DualClockDial.cycle(containing: instant, innerZone: kolkata).displayedDay
         let spoke = try requireSpoke(day, hour: 8)
         XCTAssertEqual(spoke.angleDegrees, DualClockDial.angleDegrees(hour: 8, minute: 0), accuracy: 0.001)
         XCTAssertEqual(spoke.inner.hour, 5)

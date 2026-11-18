@@ -263,7 +263,7 @@ log show --predicate 'subsystem == "local.beijingclock.jingshi"' --last 5m
 
 `downloads/BeijingClock-1.0.1-arm64.app.zip` 是不含小组件的菜单栏包，大小 180157 字节，SHA256 仍是 `b99c7489eed4cc404db217b01045e2f29c9152f836e2e936194b4d7e350f3be0`。不要把那份 zip 当成已经带有双环。
 
-界面是一个系统圆角卡片里的一个圆盘。外圈和内圈共用圆心，不是并排或上下两只钟。外圈固定 `Asia/Shanghai`，00 在正上方，顺时针，一圈 24 小时。北京早 8 点在 120 度，用方块刻度和「早8」标出，不单靠颜色。内圈默认 `America/Los_Angeles`。同一条半径是同一个绝对时刻：示例里北京 08:00 的半径上，冬令时内圈是前一日 16:00，夏令时是前一日 17:00。环表示此刻所在的一个北京公历日，不是以现在为中心滚动的 24 小时。夏令时切换日上，内圈偏移会变，缺失或重复的钟点按那个瞬间的真实读数画，不把一个时差套到整天。
+界面是一个系统圆角卡片里的一个圆盘。外圈和内圈共用圆心，不是并排或上下两只钟。表盘是 12 小时：12 在正上方，然后顺时针是 1 到 11。这一圈只表示北京的上午或下午，不能用表盘数字单独代表全天 24 小时。上午 8 点标成「早8」，下午 8 点标成「晚8」，不会把晚上 8 点写成早 8。内圈默认 `America/Los_Angeles`。同一条半径只对应这一圈里的同一个绝对时刻：冬令时北京上午 8:00 对着洛杉矶前一日下午 4:00，夏令时对着前一日下午 5:00。卡片下方的城市、时间和日期用 12 小时并写明上午或下午，整段居中。夏令时切换如果落在当前这一圈里，内圈偏移会变，缺失或重复的钟点按那个瞬间的真实读数画。
 
 样式靠近 macOS 的时钟小组件，但不是那只世界时钟。参考的是 Apple 公开说明，不是像素临摹：
 
@@ -272,11 +272,11 @@ log show --predicate 'subsystem == "local.beijingclock.jingshi"' --last 5m
 - [Preparing widgets for additional contexts and appearances](https://developer.apple.com/documentation/widgetkit/preparing-widgets-for-additional-contexts-and-appearances)：`fullColor`、`accented`、`vibrant`。文字和时间使用系统字体与 primary / secondary / tertiary，数字在 macOS 15 及以上标成可着色。
 - [Displaying the right widget background](https://developer.apple.com/documentation/widgetkit/displaying-the-right-widget-background)：背景放在 `containerBackground(_:for: .widget)` 里，让系统在需要时拿掉。这里用的是系统 `.background`，不自绘一块灰板。
 
-和系统世界时钟的真实差别：京时只有一个圆盘、两圈 24 小时，名称是「京时双环」，没有 Apple 标志，也没有把多个城市并排。圆角和单色/全彩由系统处理。这台环境没有对照官方截图像素验收。
+和系统世界时钟的真实差别：京时只有一个圆盘、内外两圈都是 12 小时，名称是「京时双环」，没有 Apple 标志，也没有把多个城市并排。圆角和单色/全彩由系统处理。这台环境没有对照官方截图像素验收。
 
 时区记在系统的小组件实例配置里。应用不另存一份，不用 App Group，不改系统时区，也不因此响铃或请求通知。时间线大约每 15 分钟一条，向前约 6 小时，并在这窗口里的夏令时切换点加一条。系统可以再推迟刷新。
 
-设计预览只画一个小组件，示例时刻是 2024-01-15 北京 08:00。它是代码绘制的，不是系统截图，也不能代替 Mac 验收：
+设计预览只画一个小组件，示例是 2024-01-15 北京上午 8:00 这一圈。它是代码绘制的，不是系统截图，也不能代替 Mac 验收：
 
 `docs/widget-design-preview.png`
 
@@ -297,7 +297,7 @@ chmod +x scripts/build-macos.sh scripts/build-widget-macos.sh
 - 本机 ad-hoc 只让同一台 Mac 上的 `codesign --verify` 能认出这个包。它不是 Developer ID，也没有公证。
 - 对外分发、让门禁（Gatekeeper）接受从网络下载的应用，Apple 要求 Developer ID 签名并公证。说明见 [Notarizing macOS software before distribution](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)。`spctl` 拒绝 ad-hoc 包，符合「未公证、也不是 Developer ID」这个事实。不能由此推断只有公证才能做开发时的小组件图库试验，也没有人在这台机器上打开过图库，所以不能保证图库或桌面可用。
 
-在 iMac（arm64，macOS 27.0 / 26A428，Xcode 27.2 / 27B52，Swift 6.4.2，SDK 27.2）上，对 `bb06264` 的源码测得 XCTest 36 项全部通过。宿主是 1.0.1、构建号 2、最低系统版本 13；扩展是 1.0.1、构建号 2、最低系统版本 14，并且带有 App Sandbox。那次没有做界面、图库或桌面验收。此提交改了视图和打包脚本，那次结果不覆盖新的提交，需要按新的 SHA 重新编译。本仓库的 Linux 环境没有 macOS SDK，没有编译扩展，也没有看见图库。
+在 iMac（arm64，macOS 27.0 / 26A428，Xcode 27.2 / 27B52，Swift 6.4.2，SDK 27.2）上，`4299a61da2f07b45466294846556eecb6d71cf6a` 的 `scripts/run-tests.sh`、`scripts/build-macos.sh` 和 `scripts/build-widget-macos.sh` 都退出 0。XCTest 36 项通过。宿主和扩展的 ad-hoc `--strict` 与 `--deep --strict` 都通过，没有在脚本之外补签。那次没有做界面、图库或桌面验收。此提交把表盘改成 12 小时并调整了下方文字，那些 Mac 结果不覆盖新的提交。本仓库的 Linux 环境没有 macOS SDK，没有编译扩展，也没有看见图库。
 
 添加和修改：
 

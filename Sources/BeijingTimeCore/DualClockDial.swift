@@ -1,12 +1,13 @@
 import Foundation
 
-/// 24 小时双环。外圈固定为北京时间的一个公历日：00 在正上方，顺时针增加。
-/// 同一个角度是同一个绝对时刻，不是两只各自把 12 点放在上方的钟。
-/// 内圈时区的夏令时可以在这一天中改变，所以不能把一个偏移套到整天。
+/// 12 小时双环。12 在正上方，顺时针到 1…11。外圈和内圈共用圆心。
+/// 同一条半径只对应此刻这一圈（上午或下午）里的一个绝对时刻。
+/// 0 点与 12 点、早 8 与晚 8 角度相同，所以表盘数字不能单独代表全天 24 小时。
 public enum DualClockDial {
     public static let defaultInnerIdentifier = "America/Los_Angeles"
     public static let emphasizedBeijingHour = 8
-    public static let emphasizedMark = "早8"
+    public static let morningEightMark = "早8"
+    public static let eveningEightMark = "晚8"
 
     public static func shortName(for identifier: String?) -> String {
         let raw = identifier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -93,10 +94,57 @@ public enum DualClockDial {
         return fallback
     }
 
-    /// 外圈角度：0 在正上方，顺时针。24 小时转一圈，不是 12 小时。
+    /// 12 点在正上方，顺时针。8 点与 20 点得到同一个角度。
     public static func angleDegrees(hour: Int, minute: Int, second: Int = 0) -> Double {
-        let seconds = Double(hour * 3600 + minute * 60 + second)
-        return seconds / 86_400.0 * 360.0
+        let wrapped = ((hour % 12) + 12) % 12
+        let seconds = Double(wrapped * 3600 + minute * 60 + second)
+        return seconds / 43_200.0 * 360.0
+    }
+
+    public static func halfDay(ofHour hour: Int) -> HalfDay {
+        hour < 12 ? .morning : .afternoon
+    }
+
+    public static func twelveHour(_ reading: ZoneReading) -> TwelveHourReading {
+        let period = halfDay(ofHour: reading.hour)
+        let face = reading.hour % 12 == 0 ? 12 : reading.hour % 12
+        let text = String(format: "%@ %d:%02d", period.title, face, reading.minute)
+        return TwelveHourReading(hourOnFace: face, minute: reading.minute, period: period, text: text)
+    }
+
+    /// 上午 8 点写成「早8」。下午 8 点写成「晚8」，不能再叫早 8。
+    public static func outerMark(beijingHour: Int) -> String {
+        if beijingHour == 8 { return morningEightMark }
+        if beijingHour == 20 { return eveningEightMark }
+        return beijingHour % 12 == 0 ? "12" : "\(beijingHour % 12)"
+    }
+
+    public static func cycleHint(for half: HalfDay) -> String {
+        switch half {
+        case .morning:
+            return "这一圈是北京上午，从午夜 12 点到中午前。8 点是早 8。"
+        case .afternoon:
+            return "这一圈是北京下午，从中午 12 点到午夜前。8 点是晚 8，不是早 8。"
+        }
+    }
+
+    /// 只画出包含此刻的那 12 个北京小时。另一半要等时刻进入下一圈才换。
+    public static func cycle(containing date: Date, innerZone: TimeZone) -> TwelveHourCycle {
+        let beijingNow = reading(date, in: BeijingTime.timeZone)
+        let half = halfDay(ofHour: beijingNow.hour)
+        let start = half == .morning ? 0 : 12
+        var spokes: [DialSpoke] = []
+        spokes.reserveCapacity(12)
+        for hour in start..<(start + 12) {
+            guard let instant = BeijingTime.date(beijingNow.civilDate, hour: hour, minute: 0) else { continue }
+            spokes.append(DialSpoke(
+                beijingHour: hour,
+                angleDegrees: angleDegrees(hour: hour, minute: 0),
+                instant: instant,
+                inner: reading(instant, in: innerZone)
+            ))
+        }
+        return TwelveHourCycle(civilDate: beijingNow.civilDate, half: half, spokes: spokes)
     }
 
     public static func reading(_ date: Date, in zone: TimeZone) -> ZoneReading {
@@ -125,7 +173,7 @@ public enum DualClockDial {
         )
     }
 
-    /// 外圈是「此刻」所在的那一个北京公历日，不是以现在为中心滚动的 24 小时窗。
+    /// 北京这一公历日的 24 个整点。8 点与 20 点角度相同，不能靠角度区分早晚。
     public static func beijingDay(containing date: Date, innerZone: TimeZone) -> BeijingDialDay {
         let beijingNow = reading(date, in: BeijingTime.timeZone)
         let civil = beijingNow.civilDate
@@ -202,6 +250,45 @@ public enum DualClockDial {
         let endDate = calendar.date(from: DateComponents(year: end.year, month: end.month, day: end.day))
         guard let startDate, let endDate else { return 0 }
         return calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 0
+    }
+}
+
+public enum HalfDay: Equatable {
+    case morning
+    case afternoon
+
+    public var title: String {
+        self == .morning ? "上午" : "下午"
+    }
+}
+
+public struct TwelveHourReading: Equatable {
+    public var hourOnFace: Int
+    public var minute: Int
+    public var period: HalfDay
+    public var text: String
+
+    public init(hourOnFace: Int, minute: Int, period: HalfDay, text: String) {
+        self.hourOnFace = hourOnFace
+        self.minute = minute
+        self.period = period
+        self.text = text
+    }
+}
+
+public struct TwelveHourCycle: Equatable {
+    public var civilDate: CivilDate
+    public var half: HalfDay
+    public var spokes: [DialSpoke]
+
+    public init(civilDate: CivilDate, half: HalfDay, spokes: [DialSpoke]) {
+        self.civilDate = civilDate
+        self.half = half
+        self.spokes = spokes
+    }
+
+    public var displayedDay: BeijingDialDay {
+        BeijingDialDay(civilDate: civilDate, spokes: spokes)
     }
 }
 

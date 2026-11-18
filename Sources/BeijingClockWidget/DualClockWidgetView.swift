@@ -8,64 +8,78 @@ import BeijingTimeCore
 /// 一个系统小组件卡片里只有一个圆盘：外圈和内圈共用圆心。
 /// 卡片圆角、边距和浅色/深色/降饱和由 WidgetKit 绘制，这里不另做一块底板。
 struct DualClockWidgetView: View {
-    @Environment(\.widgetFamily) private var family
-
     var entry: DualClockEntry
 
     var body: some View {
         let zone = DualClockDial.resolvedInnerZone(identifier: entry.innerIdentifier)
         let pair = DualClockDial.pair(at: entry.date, innerZone: zone)
-        let day = DualClockDial.beijingDay(containing: entry.date, innerZone: zone)
-        let stride = family == .systemExtraLarge ? 1 : 2
-        VStack(alignment: .leading, spacing: 8) {
-            DualClockRing(pair: pair, day: day, labelStride: stride)
+        let cycle = DualClockDial.cycle(containing: entry.date, innerZone: zone)
+        VStack(alignment: .center, spacing: 8) {
+            DualClockRing(pair: pair, day: cycle.displayedDay, labelStride: 1)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            caption(pair: pair, day: day)
+            caption(pair: pair, cycle: cycle)
         }
+        .frame(maxWidth: .infinity, alignment: .center)
         .containerBackground(.background, for: .widget)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText(pair: pair, day: day))
     }
 
-    private func caption(pair: AbsolutePair, day: BeijingDialDay) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 18) {
-                timeColumn(title: "北京", time: DualClockDial.clockLabel(pair.beijing), detail: "外圈")
+    private func caption(pair: AbsolutePair, cycle: TwelveHourCycle) -> some View {
+        let day = cycle.displayedDay
+        VStack(alignment: .center, spacing: 4) {
+            HStack(alignment: .center, spacing: 12) {
+                timeColumn(
+                    title: "北京",
+                    time: DualClockDial.twelveHour(pair.beijing).text,
+                    detail: "外圈 · \(pair.dayRelation == .today ? "今天" : pair.beijing.month.description + "月" + pair.beijing.day.description + "日")"
+                )
                 timeColumn(
                     title: DualClockDial.shortName(for: pair.inner.timeZoneIdentifier),
-                    time: DualClockDial.clockLabel(pair.inner),
+                    time: DualClockDial.twelveHour(pair.inner).text,
                     detail: pair.dayRelation.title
                 )
             }
-            Text(DualClockDial.instantOffsetPhrase(beijing: pair.beijing, inner: pair.inner))
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
+            centeredNote(DualClockDial.cycleHint(for: cycle.half))
+            centeredNote(DualClockDial.instantOffsetPhrase(beijing: pair.beijing, inner: pair.inner))
             if day.distinctOffsets.count > 1 || !day.repeatedInnerClockHours.isEmpty {
-                Text(dayNote(day))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
+                centeredNote(dayNote(day))
             }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private func centeredNote(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .lineLimit(3)
+            .minimumScaleFactor(0.75)
     }
 
     private func timeColumn(title: String, time: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .center, spacing: 0) {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
             Text(time)
                 .font(.system(.title3, design: .default).weight(.medium))
                 .monospacedDigit()
                 .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
                 .modifier(AccentIfAvailable())
             Text(detail)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func dayNote(_ day: BeijingDialDay) -> String {
@@ -79,7 +93,7 @@ struct DualClockWidgetView: View {
     }
 
     private func accessibilityText(pair: AbsolutePair, day: BeijingDialDay) -> String {
-        var text = "同一个圆盘。外圈北京 \(DualClockDial.clockLabel(pair.beijing))，内圈\(DualClockDial.shortName(for: pair.inner.timeZoneIdentifier)) \(DualClockDial.clockLabel(pair.inner))，\(pair.dayRelation.title)。北京早8点有刻度标记。"
+        var text = "同一个圆盘，12 小时一圈。外圈北京 \(DualClockDial.twelveHour(pair.beijing).text)，内圈\(DualClockDial.shortName(for: pair.inner.timeZoneIdentifier)) \(DualClockDial.twelveHour(pair.inner).text)，\(pair.dayRelation.title)。\(DualClockDial.cycleHint(for: DualClockDial.halfDay(ofHour: pair.beijing.hour)))"
         if day.distinctOffsets.count > 1 {
             text += "今天的时差不是整天不变。"
         }
@@ -115,6 +129,7 @@ struct DualClockRing: View {
 
             for spoke in day.spokes {
                 let emphasized = spoke.beijingHour == DualClockDial.emphasizedBeijingHour
+                let eveningEight = spoke.beijingHour == 20
                 let showLabel = emphasized || spoke.beijingHour.isMultiple(of: labelStride)
                 let tickColor = emphasized ? Color.primary : quietInk
                 let tickWidth: CGFloat = emphasized ? 2.5 : 1
@@ -129,11 +144,11 @@ struct DualClockRing: View {
                 }
                 if showLabel {
                     draw(
-                        emphasized ? DualClockDial.emphasizedMark : String(format: "%02d", spoke.beijingHour),
+                        DualClockDial.outerMark(beijingHour: spoke.beijingHour),
                         at: point(center: center, radius: radius * 0.94, angle: spoke.angleDegrees),
                         in: &context,
-                        size: emphasized ? 12 : 10,
-                        weight: emphasized ? .semibold : .regular,
+                        size: emphasized || eveningEight ? 12 : 11,
+                        weight: emphasized || eveningEight ? .semibold : .regular,
                         color: Color.primary
                     )
                     let repeated = day.repeatedInnerClockHours.contains {
@@ -141,7 +156,7 @@ struct DualClockRing: View {
                             && $0.day == spoke.inner.day && $0.hour == spoke.inner.hour
                     }
                     draw(
-                        DualClockDial.clockLabel(spoke.inner) + (repeated ? "重" : ""),
+                        "\(DualClockDial.twelveHour(spoke.inner).hourOnFace)" + (repeated ? "重" : ""),
                         at: point(center: center, radius: (innerRing + outerRing) / 2, angle: spoke.angleDegrees),
                         in: &context,
                         size: 9,
@@ -170,7 +185,7 @@ struct DualClockRing: View {
                 with: .color(Color.primary)
             )
         }
-        .accessibilityLabel("一个圆盘上的内外同心环。正上方是北京零点，顺时针。北京早8点有方块刻度。")
+        .accessibilityLabel("一个圆盘上的内外同心环。正上方是 12。早 8 和晚 8 在同一个角度，要看这一圈是上午还是下午。")
     }
 
     private func strokeCircle(
