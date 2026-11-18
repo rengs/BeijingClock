@@ -12,6 +12,9 @@ final class DualClockDialTests: XCTestCase {
         XCTAssertEqual(DualClockDial.resolvedInnerZone(identifier: "Not/AZone").identifier, "America/Los_Angeles")
         XCTAssertEqual(DualClockDial.resolvedInnerZone(identifier: "PST").identifier, "America/Los_Angeles")
         XCTAssertEqual(DualClockDial.resolvedInnerZone(identifier: "America/Los_Angeles").identifier, "America/Los_Angeles")
+        XCTAssertEqual(DualClockDial.shortName(for: nil), "洛杉矶")
+        XCTAssertEqual(DualClockDial.shortName(for: "America/Los_Angeles"), "洛杉矶")
+        XCTAssertEqual(DualClockDial.shortName(for: "Asia/Kolkata"), "加尔各答")
         XCTAssertTrue(DualClockDial.suggestedInnerIdentifiers.contains("America/Los_Angeles"))
         XCTAssertEqual(DualClockDial.suggestedInnerIdentifiers.first, "America/Los_Angeles")
     }
@@ -193,6 +196,13 @@ final class DualClockDialTests: XCTestCase {
             contentsOf: root.appendingPathComponent("Sources/BeijingClockWidget/DualClockWidget.swift"),
             encoding: .utf8
         )
+        let view = try String(
+            contentsOf: root.appendingPathComponent("Sources/BeijingClockWidget/DualClockWidgetView.swift"),
+            encoding: .utf8
+        )
+        XCTAssertEqual(view.components(separatedBy: "DualClockRing(").count - 1, 1)
+        XCTAssertTrue(view.contains("containerBackground"))
+        XCTAssertFalse(view.contains("Color(white:"))
         let plist = try String(
             contentsOf: root.appendingPathComponent("WidgetExtension/Info.plist"),
             encoding: .utf8

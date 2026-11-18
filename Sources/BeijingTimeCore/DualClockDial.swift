@@ -8,6 +8,41 @@ public enum DualClockDial {
     public static let emphasizedBeijingHour = 8
     public static let emphasizedMark = "早8"
 
+    public static func shortName(for identifier: String?) -> String {
+        let raw = identifier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        switch raw {
+        case "", defaultInnerIdentifier: return "洛杉矶"
+        case "America/Vancouver": return "温哥华"
+        case "America/Denver": return "丹佛"
+        case "America/Chicago": return "芝加哥"
+        case "America/New_York": return "纽约"
+        case "America/St_Johns": return "纽芬兰"
+        case "America/Sao_Paulo": return "圣保罗"
+        case "UTC", "GMT", "Etc/UTC", "Etc/GMT": return "UTC"
+        case "Europe/London": return "伦敦"
+        case "Europe/Paris": return "巴黎"
+        case "Africa/Cairo": return "开罗"
+        case "Europe/Moscow": return "莫斯科"
+        case "Asia/Tehran": return "德黑兰"
+        case "Asia/Kolkata", "Asia/Calcutta": return "加尔各答"
+        case "Asia/Kathmandu", "Asia/Katmandu": return "加德满都"
+        case "Asia/Shanghai": return "北京"
+        case "Asia/Tokyo": return "东京"
+        case "Australia/Adelaide": return "阿德莱德"
+        case "Australia/Eucla": return "尤克拉"
+        case "Australia/Sydney": return "悉尼"
+        case "Pacific/Auckland": return "奥克兰"
+        case "Pacific/Chatham": return "查塔姆"
+        case "Pacific/Honolulu": return "檀香山"
+        default:
+            let resolved = resolvedInnerZone(identifier: raw).identifier
+            if resolved == defaultInnerIdentifier && raw != defaultInnerIdentifier {
+                return "洛杉矶"
+            }
+            return resolved.split(separator: "/").last.map(String.init) ?? "洛杉矶"
+        }
+    }
+
     /// 小组件时间线的刷新间隔。WidgetKit 有系统预算，这里不请求每秒刷新。
     public static let timelineSpacing: TimeInterval = 15 * 60
     public static let timelineHorizon: TimeInterval = 6 * 60 * 60

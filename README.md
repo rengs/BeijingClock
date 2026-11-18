@@ -263,13 +263,22 @@ log show --predicate 'subsystem == "local.beijingclock.jingshi"' --last 5m
 
 `downloads/BeijingClock-1.0.1-arm64.app.zip` 是不含小组件的菜单栏包，大小 180157 字节，SHA256 仍是 `b99c7489eed4cc404db217b01045e2f29c9152f836e2e936194b4d7e350f3be0`。不要把那份 zip 当成已经带有双环。
 
-外圈固定 `Asia/Shanghai`。00 在正上方，顺时针，一圈 24 小时。这个方向和普通 24 小时钟面一致，北京早 8 点在 120 度，用方块刻度和「早8」标出，不单靠颜色。内圈默认 `America/Los_Angeles`，也可以在小组件编辑里改成列表中的其他 IANA 时区，包括半小时和 45 分钟偏移。同一个角度是同一个绝对时刻：冬令时北京 08:00 对着洛杉矶前一日 16:00，夏令时对着前一日 17:00。环表示此刻所在的一个北京公历日，不是以现在为中心滚动的 24 小时。夏令时切换日上，内圈偏移会变，缺失或重复的钟点按那个瞬间的真实读数画，不把一个时差套到整天。
+界面是一个系统圆角卡片里的一个圆盘。外圈和内圈共用圆心，不是并排或上下两只钟。外圈固定 `Asia/Shanghai`，00 在正上方，顺时针，一圈 24 小时。北京早 8 点在 120 度，用方块刻度和「早8」标出，不单靠颜色。内圈默认 `America/Los_Angeles`。同一条半径是同一个绝对时刻：示例里北京 08:00 的半径上，冬令时内圈是前一日 16:00，夏令时是前一日 17:00。环表示此刻所在的一个北京公历日，不是以现在为中心滚动的 24 小时。夏令时切换日上，内圈偏移会变，缺失或重复的钟点按那个瞬间的真实读数画，不把一个时差套到整天。
+
+样式靠近 macOS 的时钟小组件，但不是那只世界时钟。参考的是 Apple 公开说明，不是像素临摹：
+
+- [在 Mac 上的时钟中查看时间](https://support.apple.com/guide/clock-mac/check-the-time-apdw7dec11e7/mac)：系统有 City 和 World Clock 小组件，编辑方式是 Control-click 后选 Edit “Clock”。世界时钟是多个城市的表盘，京时不采用这个排列。
+- [在 Mac 上添加和自定义小组件](https://support.apple.com/guide/mac-help/add-and-customize-widgets-mchl52be5da5/mac)：桌面小组件由系统加圆角卡片；小组件风格可以是自动、单色或全彩。
+- [Preparing widgets for additional contexts and appearances](https://developer.apple.com/documentation/widgetkit/preparing-widgets-for-additional-contexts-and-appearances)：`fullColor`、`accented`、`vibrant`。文字和时间使用系统字体与 primary / secondary / tertiary，数字在 macOS 15 及以上标成可着色。
+- [Displaying the right widget background](https://developer.apple.com/documentation/widgetkit/displaying-the-right-widget-background)：背景放在 `containerBackground(_:for: .widget)` 里，让系统在需要时拿掉。这里用的是系统 `.background`，不自绘一块灰板。
+
+和系统世界时钟的真实差别：京时只有一个圆盘、两圈 24 小时，名称是「京时双环」，没有 Apple 标志，也没有把多个城市并排。圆角和单色/全彩由系统处理。这台环境没有对照官方截图像素验收。
 
 时区记在系统的小组件实例配置里。应用不另存一份，不用 App Group，不改系统时区，也不因此响铃或请求通知。时间线大约每 15 分钟一条，向前约 6 小时，并在这窗口里的夏令时切换点加一条。系统可以再推迟刷新。
 
-设计预览（代码按同一几何画出，不是系统截图，也不能代替在 Mac 上验收）：
+设计预览只画一个小组件，示例时刻是 2024-01-15 北京 08:00。它是代码绘制的，不是系统截图，也不能代替 Mac 验收：
 
-`docs/widget-design-preview.svg`
+`docs/widget-design-preview.png`
 
 在自己的 Mac 上编译扩展：
 
@@ -279,7 +288,16 @@ chmod +x scripts/build-macos.sh scripts/build-widget-macos.sh
 ./scripts/build-widget-macos.sh
 ```
 
-第一条只组装菜单栏 App。第二条用 Xcode 编出 `BeijingClockWidget.appex`，在已有 `dist/BeijingClock.app` 时放进 `Contents/PlugIns`。脚本会做 ad-hoc 签名。macOS 要在图库里列出小组件，通常还要求开发团队签名，并在安装后至少打开一次包含扩展的应用。ad-hoc 签名通过 `codesign --verify` 也不等于已经可以放到桌面。本仓库的 Linux 同步环境没有 macOS SDK，没有编译这个扩展，也没有注册它。
+第一条先做出还没有扩展的菜单栏 App，并给那个宿主做一次 ad-hoc 签名。第二条编译扩展、复制进 `Contents/PlugIns`，然后才由内向外重新签名：先签 `BeijingClockWidget.appex`（带 App Sandbox entitlement），再签宿主。签名用的是 `codesign --sign -`，不用 `--deep` 代替逐层签名，也不使用开发者证书。复制完成之后，脚本要求扩展和宿主的 `--verify --strict`，以及宿主的 `--verify --deep --strict` 都成功；任一失败则脚本以非 0 结束。
+
+这个顺序来自一次真实构建：在 `bb06264158b1729877fe9cf657cd64ba00b9c500` 上，脚本当时先签宿主再嵌入扩展，脚本退出码是 0，但整包 `codesign --verify` 退出码是 1。扩展自己的 ad-hoc 校验可以通过。按先扩展、后宿主补签之后，`--strict` 和 `--deep --strict` 都是 0。Apple 的 [TN2206](https://developer.apple.com/library/archive/technotes/tn2206/_index.html) 要求嵌套代码由内向外签。`codesign` 手册把 `--deep` 当作不推荐的签名方式，因为同一组选项会被套到所有嵌套代码上；它可以用来复查，不能代替逐层签名。
+
+签名分两件事，不要混在一起：
+
+- 本机 ad-hoc 只让同一台 Mac 上的 `codesign --verify` 能认出这个包。它不是 Developer ID，也没有公证。
+- 对外分发、让门禁（Gatekeeper）接受从网络下载的应用，Apple 要求 Developer ID 签名并公证。说明见 [Notarizing macOS software before distribution](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)。`spctl` 拒绝 ad-hoc 包，符合「未公证、也不是 Developer ID」这个事实。不能由此推断只有公证才能做开发时的小组件图库试验，也没有人在这台机器上打开过图库，所以不能保证图库或桌面可用。
+
+在 iMac（arm64，macOS 27.0 / 26A428，Xcode 27.2 / 27B52，Swift 6.4.2，SDK 27.2）上，对 `bb06264` 的源码测得 XCTest 36 项全部通过。宿主是 1.0.1、构建号 2、最低系统版本 13；扩展是 1.0.1、构建号 2、最低系统版本 14，并且带有 App Sandbox。那次没有做界面、图库或桌面验收。此提交改了视图和打包脚本，那次结果不覆盖新的提交，需要按新的 SHA 重新编译。本仓库的 Linux 环境没有 macOS SDK，没有编译扩展，也没有看见图库。
 
 添加和修改：
 
@@ -303,4 +321,4 @@ chmod +x scripts/build-macos.sh scripts/build-widget-macos.sh
 - `scripts/install-macos.sh`：校验并安装本仓库的 arm64 zip。
 - `Tests/BeijingTimeCoreTests/`：原有时间与闹钟测试，加上双环、夏令时和小组件时间线预算。
 - `downloads/`：版本化的预编译 zip 和 SHA256。仓库里不提交解开的 `.app`。这份 zip 没有小组件。
-- `docs/widget-design-preview.svg`：双环设计预览。
+- `docs/widget-design-preview.png`：单个小组件的同心环设计预览，不是系统截图。
