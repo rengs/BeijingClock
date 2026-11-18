@@ -257,13 +257,68 @@ log show --predicate 'subsystem == "local.beijingclock.jingshi"' --last 5m
 
 安装时没有添加登录项，也不需要改时区或睡眠。卸载时不要对主目录或资源库使用带通配符的删除。
 
+## 桌面小组件
+
+这是 macOS 14 及以上的 WidgetKit 扩展，放在桌面或通知中心，不是一扇浮动窗口。菜单栏应用的最低系统版本仍是 macOS 13。macOS 13 上看不到这个小组件。
+
+`downloads/BeijingClock-1.0.1-arm64.app.zip` 是不含小组件的菜单栏包，大小 180157 字节，SHA256 仍是 `b99c7489eed4cc404db217b01045e2f29c9152f836e2e936194b4d7e350f3be0`。不要把那份 zip 当成已经带有双环。
+
+界面是一个系统圆角卡片里的一个圆盘。外圈和内圈共用圆心，不是并排或上下两只钟。表盘是 12 小时：12 在正上方，然后顺时针是 1 到 11。这一圈只表示北京的上午或下午，不能用表盘数字单独代表全天 24 小时。上午 8 点标成「早8」，下午 8 点标成「晚8」，不会把晚上 8 点写成早 8。内圈默认 `America/Los_Angeles`。同一条半径只对应这一圈里的同一个绝对时刻：冬令时北京上午 8:00 对着洛杉矶前一日下午 4:00，夏令时对着前一日下午 5:00。卡片下方的城市、时间和日期用 12 小时并写明上午或下午，整段居中。夏令时切换如果落在当前这一圈里，内圈偏移会变，缺失或重复的钟点按那个瞬间的真实读数画。
+
+样式靠近 macOS 的时钟小组件，但不是那只世界时钟。参考的是 Apple 公开说明，不是像素临摹：
+
+- [在 Mac 上的时钟中查看时间](https://support.apple.com/guide/clock-mac/check-the-time-apdw7dec11e7/mac)：系统有 City 和 World Clock 小组件，编辑方式是 Control-click 后选 Edit “Clock”。世界时钟是多个城市的表盘，京时不采用这个排列。
+- [在 Mac 上添加和自定义小组件](https://support.apple.com/guide/mac-help/add-and-customize-widgets-mchl52be5da5/mac)：桌面小组件由系统加圆角卡片；小组件风格可以是自动、单色或全彩。
+- [Preparing widgets for additional contexts and appearances](https://developer.apple.com/documentation/widgetkit/preparing-widgets-for-additional-contexts-and-appearances)：`fullColor`、`accented`、`vibrant`。文字和时间使用系统字体与 primary / secondary / tertiary，数字在 macOS 15 及以上标成可着色。
+- [Displaying the right widget background](https://developer.apple.com/documentation/widgetkit/displaying-the-right-widget-background)：背景放在 `containerBackground(_:for: .widget)` 里，让系统在需要时拿掉。这里用的是系统 `.background`，不自绘一块灰板。
+
+和系统世界时钟的真实差别：京时只有一个圆盘、内外两圈都是 12 小时，名称是「京时双环」，没有 Apple 标志，也没有把多个城市并排。圆角和单色/全彩由系统处理。这台环境没有对照官方截图像素验收。
+
+时区记在系统的小组件实例配置里。应用不另存一份，不用 App Group，不改系统时区，也不因此响铃或请求通知。时间线大约每 15 分钟一条，向前约 6 小时，并在这窗口里的夏令时切换点加一条。系统可以再推迟刷新。
+
+设计预览只画一个小组件，示例是 2024-01-15 北京上午 8:00 这一圈。它是代码绘制的，不是系统截图，也不能代替 Mac 验收：
+
+`docs/widget-design-preview.png`
+
+在自己的 Mac 上编译扩展：
+
+```bash
+chmod +x scripts/build-macos.sh scripts/build-widget-macos.sh
+./scripts/build-macos.sh
+./scripts/build-widget-macos.sh
+```
+
+第一条先做出还没有扩展的菜单栏 App，并给那个宿主做一次 ad-hoc 签名。第二条编译扩展、复制进 `Contents/PlugIns`，然后才由内向外重新签名：先签 `BeijingClockWidget.appex`（带 App Sandbox entitlement），再签宿主。签名用的是 `codesign --sign -`，不用 `--deep` 代替逐层签名，也不使用开发者证书。复制完成之后，脚本要求扩展和宿主的 `--verify --strict`，以及宿主的 `--verify --deep --strict` 都成功；任一失败则脚本以非 0 结束。
+
+这个顺序来自一次真实构建：在 `bb06264158b1729877fe9cf657cd64ba00b9c500` 上，脚本当时先签宿主再嵌入扩展，脚本退出码是 0，但整包 `codesign --verify` 退出码是 1。扩展自己的 ad-hoc 校验可以通过。按先扩展、后宿主补签之后，`--strict` 和 `--deep --strict` 都是 0。Apple 的 [TN2206](https://developer.apple.com/library/archive/technotes/tn2206/_index.html) 要求嵌套代码由内向外签。`codesign` 手册把 `--deep` 当作不推荐的签名方式，因为同一组选项会被套到所有嵌套代码上；它可以用来复查，不能代替逐层签名。
+
+签名分两件事，不要混在一起：
+
+- 本机 ad-hoc 只让同一台 Mac 上的 `codesign --verify` 能认出这个包。它不是 Developer ID，也没有公证。
+- 对外分发、让门禁（Gatekeeper）接受从网络下载的应用，Apple 要求 Developer ID 签名并公证。说明见 [Notarizing macOS software before distribution](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)。`spctl` 拒绝 ad-hoc 包，符合「未公证、也不是 Developer ID」这个事实。不能由此推断只有公证才能做开发时的小组件图库试验，也没有人在这台机器上打开过图库，所以不能保证图库或桌面可用。
+
+在 iMac（arm64，macOS 27.0 / 26A428，Xcode 27.2 / 27B52，Swift 6.4.2，SDK 27.2）上，`4299a61da2f07b45466294846556eecb6d71cf6a` 的 `scripts/run-tests.sh`、`scripts/build-macos.sh` 和 `scripts/build-widget-macos.sh` 都退出 0。XCTest 36 项通过。宿主和扩展的 ad-hoc `--strict` 与 `--deep --strict` 都通过，没有在脚本之外补签。那次没有做界面、图库或桌面验收。此提交把表盘改成 12 小时并调整了下方文字，那些 Mac 结果不覆盖新的提交。本仓库的 Linux 环境没有 macOS SDK，没有编译扩展，也没有看见图库。
+
+添加和修改：
+
+1. 用带 `PlugIns/BeijingClockWidget.appex` 的应用，先打开一次京时。
+2. 在桌面空白处或通知中心打开小组件图库，找「京时双环」。建议中号、大号或超大号。
+3. 编辑这个小组件，改「内圈时区」。非法或空的标识会回到洛杉矶。
+4. 刷新交给系统。退出京时不会按秒重画小组件。
+
+若图库没有这一项，先看扩展是否真的在 App 包里，以及 `codesign --verify --strict` 是否通过。未验证：图库出现、桌面放置、深色外观的实际像素、以及 ad-hoc 签名能否被 pluginkit 接受。
+
 ## 源码
 
-- `Sources/BeijingTimeCore/`：时区、菜单栏格式、闹钟、调度和 JSON 存储。不依赖 AppKit，测试覆盖这里。
+- `Sources/BeijingTimeCore/`：时区、菜单栏格式、闹钟、调度、JSON 存储，以及双环的纯时间计算。不依赖 AppKit，测试覆盖这里。
 - `Sources/BeijingClock/`：macOS 菜单栏、弹出层、设置、闹钟窗口和可选通知。
-- `Packaging/Info.plist`：`LSUIElement`、显示名「京时」、Bundle ID、版本 1.0.1、构建号 2。
-- `scripts/build-macos.sh`：只在 macOS 上编译并组装 App。
+- `Sources/BeijingClockWidget/`：macOS 14 的 WidgetKit 扩展视图和时间线。Swift Package 不产出这个扩展。
+- `WidgetExtension/`：扩展的 Xcode 工程、`Info.plist` 和 App Sandbox entitlement。
+- `Packaging/Info.plist`：`LSUIElement`、显示名「京时」、Bundle ID、版本 1.0.1、构建号 2，最低系统版本 13.0。
+- `scripts/build-macos.sh`：只在 macOS 上编译并组装菜单栏 App。
+- `scripts/build-widget-macos.sh`：只在 macOS 上编译 Widget 扩展。
 - `scripts/run-tests.sh`：运行 Swift 测试，不下载编译器。
 - `scripts/install-macos.sh`：校验并安装本仓库的 arm64 zip。
-- `Tests/BeijingTimeCoreTests/`：洛杉矶与北京的换算、北京零点、单次/每天的下一次、重复与重启、错过策略、编辑和删除，以及启动窗口策略。
-- `downloads/`：版本化的预编译 zip 和 SHA256。仓库里不提交解开的 `.app`。
+- `Tests/BeijingTimeCoreTests/`：原有时间与闹钟测试，加上双环、夏令时和小组件时间线预算。
+- `downloads/`：版本化的预编译 zip 和 SHA256。仓库里不提交解开的 `.app`。这份 zip 没有小组件。
+- `docs/widget-design-preview.png`：单个小组件的同心环设计预览，不是系统截图。
