@@ -22,12 +22,12 @@ struct DualClockWidgetView: View {
         .frame(maxWidth: .infinity, alignment: .center)
         .containerBackground(.background, for: .widget)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText(pair: pair, day: day))
+        .accessibilityLabel(accessibilityText(pair: pair, day: cycle.displayedDay))
     }
 
     private func caption(pair: AbsolutePair, cycle: TwelveHourCycle) -> some View {
         let day = cycle.displayedDay
-        VStack(alignment: .center, spacing: 4) {
+        return VStack(alignment: .center, spacing: 4) {
             HStack(alignment: .center, spacing: 12) {
                 timeColumn(
                     title: "北京",
